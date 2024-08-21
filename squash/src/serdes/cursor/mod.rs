@@ -63,5 +63,6 @@ pub fn serialize<T: SquashObject>(value: T) -> crate::Result<Vec<u8>> {
 
 pub fn deserialize<T: SquashObject>(data: Vec<u8>) -> crate::Result<T> {
     let mut cursor = Cursor::new(data);
+    cursor.seek_end()?;
     cursor.pop()
 }

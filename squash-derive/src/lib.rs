@@ -277,13 +277,53 @@ fn derive_squash_object_enum(
     let name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    let (field_index, field_enum) = data.variants.iter().enumerate().fold(
+    let (field_pop, field_push) = data.variants.iter().enumerate().fold(
         (Vec::new(), Vec::new()),
-        |(mut field_index, mut field_enum), (i, variant)| {
+        |(mut field_pop, mut field_push), (i, variant)| {
             let ident = &variant.ident;
-            field_index.push(i as u8);
-            field_enum.push(ident.clone());
-            (field_index, field_enum)
+            let i = i as u8;
+            match &variant.fields {
+                syn::Fields::Unit => {
+                    field_pop.push(quote! {
+                        #i => Ok(#name::#ident),
+                    });
+                    field_push.push(quote! {
+                        #name::#ident => {
+                            count += cursor.push(#i as u8)?;
+                        }
+                    });
+                }
+                syn::Fields::Unnamed(_) => {
+                    field_pop.push(quote! {
+                        #i => Ok(#name::#ident(cursor.pop()?)),
+                    });
+                    field_push.push(quote! {
+                        #name::#ident(value) => {
+                            count += cursor.push(#i as u8)?;
+                            count += cursor.push(value)?;
+                        }
+                    });
+                },
+                syn::Fields::Named(fields) => {
+                    let field_names: Vec<_> = fields.named.iter().map(|f| &f.ident).collect();
+                    let field_names_reversed = field_names.iter().rev();
+                    
+                    field_pop.push(quote! {
+                        #i => Ok(#name::#ident {
+                            #(#field_names_reversed: cursor.pop()?,)*
+                        }),
+                    });
+                    field_push.push(quote! {
+                        #name::#ident { #(#field_names),* } => {
+                            count += cursor.push(#i as u8)?;
+                            #(
+                                count += cursor.push(#field_names)?;
+                            )*
+                        }
+                    });
+                }
+            };
+            (field_pop, field_push)
         },
     );
 
@@ -295,10 +335,8 @@ fn derive_squash_object_enum(
                 Self: Sized {
                 let tag = cursor.pop::<u8>()?;
                 match tag {
-                    #(
-                        #field_index => Ok(#name::#field_enum(cursor.pop()?)),
-                    )*
-                    _ => Err(::squash::Error::CharMissing),
+                    #(#field_pop)*
+                    _ => Err(::squash::Error::DeserializeVariantNotMatched),
                 }
             }
 
@@ -306,10 +344,7 @@ fn derive_squash_object_enum(
                 let mut count = 0;
                 match self {
                     #(
-                        #name::#field_enum(v) => {
-                            count += cursor.push(v)?;
-                            count += cursor.push(#field_index as u8)?;
-                        }
+                        #field_push
                     )*
                 }
                 Ok(count)

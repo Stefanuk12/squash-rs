@@ -2,12 +2,12 @@ use super::prelude::*;
 
 #[cfg_attr(feature = "serde", derive(Serialize, ReverseDeserialize))]
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default)]
-pub struct Vector2<T: SquashFloat> {
+pub struct Vector2<T: SquashNumber> {
     pub y: T,
     pub x: T,
 }
-impl_squash_object_a!(Vector2<T: SquashFloat>, x, y;y, x);
-impl<T: SquashFloat> Vector2<T> {
+impl_squash_object_a!(Vector2<T: SquashNumber>, x, y;y, x);
+impl<T: SquashNumber> Vector2<T> {
     pub fn new(x: T, y: T) -> Self {
         Self { x, y }
     }

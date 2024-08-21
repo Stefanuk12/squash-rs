@@ -2,21 +2,21 @@ use super::prelude::*;
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
-pub struct Vector3<T: SquashFloat> {
+pub struct Vector3<T: SquashNumber> {
     pub z: T,
     pub y: T,
     pub x: T,
 }
-impl_squash!(Vector3<T: SquashFloat>, x, y, z; z, y, x);
-impl<T: SquashFloat> Vector3<T> {
+impl_squash!(Vector3<T: SquashNumber>, x, y, z; z, y, x);
+impl<T: SquashNumber> Vector3<T> {
     pub fn new(x: T, y: T, z: T) -> Self {
         Self { x, y, z }
     }
 }
-impl<T: SquashFloat> Zero for Vector3<T> {
+impl<T: SquashNumber> Zero for Vector3<T> {
     const ZERO: Self = Self { x: T::ZERO, y: T::ZERO, z: T::ZERO };
 }
-impl<T: SquashFloat> Default for Vector3<T> {
+impl<T: SquashNumber> Default for Vector3<T> {
     fn default() -> Self {
         Self::ZERO
     }

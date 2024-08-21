@@ -57,13 +57,13 @@ impl CframeRotSegments {
 }
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default)]
-pub struct Cframe<T: SquashFloat> {
+pub struct Cframe<T: SquashNumber> {
     pub rotation: CframeRotSegments,
     pub position: Vector3<T>,
 }
-impl_squash_object_a!(Cframe<T: SquashFloat>, rotation, position;position, rotation);
+impl_squash_object_a!(Cframe<T: SquashNumber>, rotation, position;position, rotation);
 
-impl<T: SquashFloat> Cframe<T> {
+impl<T: SquashNumber> Cframe<T> {
     pub const fn special_id(&self) -> Option<u8> {
         let mut i = 1;
         while i < CFRAME_ROTS.len() {
@@ -91,7 +91,7 @@ impl<T: SquashFloat> Cframe<T> {
 #[cfg(feature = "serde")]
 impl<T> Serialize for Cframe<T>
 where
-    T: SquashFloat,
+    T: SquashNumber,
     Vector3<T>: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> CoreResult<S::Ok, S::Error>
@@ -110,13 +110,13 @@ where
     }
 }
 #[cfg(feature = "serde")]
-impl<'de, T: SquashFloat> Deserialize<'de> for Cframe<T> {
+impl<'de, T: SquashNumber> Deserialize<'de> for Cframe<T> {
     fn deserialize<D>(deserializer: D) -> CoreResult<Self, D::Error>
         where
             D: Deserializer<'de> {
         struct CframeVisitor<T>(core::marker::PhantomData<T>);
 
-        impl<'de, T: SquashFloat> serde::de::Visitor<'de> for CframeVisitor<T> {
+        impl<'de, T: SquashNumber> serde::de::Visitor<'de> for CframeVisitor<T> {
             type Value = Cframe<T>;
 
             fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {

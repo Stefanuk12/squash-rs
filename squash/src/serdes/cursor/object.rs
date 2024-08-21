@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, mem::MaybeUninit};
 
 use ux::*;
 
@@ -144,15 +144,16 @@ impl SquashObject for String {
             where
                 T: SquashCursor,
                 Self: Sized {
-        let len: Vlq = cursor.pop()?;
+        let len = cursor.pop::<Vlq>()?;
         let mut buf = vec![0; len.0 as usize];
         cursor.pop_read(&mut buf)?;
         Ok(String::from_utf8(buf)?)
     }
     fn push_obj<T: SquashCursor>(self, cursor: &mut T) -> crate::Result<usize> {
         let len = Vlq(self.len() as u64);
-        let mut count = cursor.push(len)?;
+        let mut count = 0;
         count += cursor.write(self.as_bytes())?;
+        count += cursor.push(len)?;
         Ok(count)
     }
 }
@@ -167,5 +168,27 @@ impl SquashObject for char {
     }
     fn push_obj<T: SquashCursor>(self, cursor: &mut T) -> crate::Result<usize> {
         self.to_string().push_obj(cursor)
+    }
+}
+
+impl<T: SquashObject, const N: usize> SquashObject for [T; N] {
+    fn pop_obj<C>(cursor: &mut C) -> crate::Result<Self>
+    where
+        C: SquashCursor,
+        Self: Sized,
+    {
+        let mut arr = Vec::with_capacity(N);
+        for _ in 0..N {
+            arr.push(T::pop_obj(cursor)?);
+        }
+        Ok(unsafe { arr.try_into().unwrap_unchecked() })
+    }
+
+    fn push_obj<C: SquashCursor>(self, cursor: &mut C) -> crate::Result<usize> {
+        let mut count = 0;
+        for item in self.into_iter() {
+            count += item.push_obj(cursor)?;
+        }
+        Ok(count)
     }
 }

@@ -2,11 +2,11 @@ use super::prelude::*;
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default)]
-pub struct Region3<T: SquashFloat> {
+pub struct Region3<T: SquashNumber> {
     pub size: Vector3<T>,
     pub position: Vector3<T>,
 }
-impl_squash!(Region3<T: SquashFloat>, size, position;position, size);
+impl_squash!(Region3<T: SquashNumber>, size, position;position, size);
 
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]

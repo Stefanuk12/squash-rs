@@ -17,6 +17,8 @@ pub enum Error {
     InvalidVlq(u64),
     #[error("deserialize_any is not implemented")]
     DeserializeAnyNotImplemented,
+    #[error("failed to match variant")]
+    DeserializeVariantNotMatched,
     #[error("{0}")]
     Custom(String),
 }
