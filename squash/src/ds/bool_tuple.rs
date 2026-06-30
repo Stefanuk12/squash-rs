@@ -20,7 +20,7 @@ macro_rules! decl_bool_tuple {
         impl ::serde::Serialize for $name {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where
-                    S: ::serde::Serializer 
+                    S: ::serde::Serializer
             {
                 serializer.serialize_u8(
                     0u8 $( | ((self.$idx as u8) << $idx) )*
@@ -38,7 +38,7 @@ macro_rules! decl_bool_tuple {
             }
         }
     };
-    // I need a way to expand to `pub bool` as many times as there are literals, 
+    // I need a way to expand to `pub bool` as many times as there are literals,
     // so I'm using a little helper that ignores the literal and just expands to something else.
     ( @decl $_:literal, $($expand:tt)* ) => { $($expand)* };
 }

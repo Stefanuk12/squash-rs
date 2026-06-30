@@ -1,4 +1,4 @@
-use crate::{ux::*, SquashNumber}; 
+use crate::{ux::*, SquashNumber};
 
 pub trait SquashInteger: SquashNumber {}
 impl SquashInteger for i8 {}
