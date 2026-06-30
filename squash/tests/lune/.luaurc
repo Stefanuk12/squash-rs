@@ -1,0 +1,10 @@
+{
+	"languageMode": "strict",
+	"lint": {
+		"*": true
+	},
+	"lintErrors": false,
+	"aliases": {
+		"lune": ".lune-defs/"
+	}
+}

@@ -1,0 +1,10 @@
+{
+	// Force Luau's new type solver (a luau-lsp analysis setting, not .luaurc/Lune).
+	"luau-lsp.fflags.enableNewSolver": true,
+	// Keep our explicit FFlags from being clobbered by upstream-synced defaults,
+	// and pin the underlying flag directly in case enableNewSolver is unavailable.
+	"luau-lsp.fflags.sync": false,
+	"luau-lsp.fflags.override": {
+		"LuauSolverV2": "true"
+	}
+}

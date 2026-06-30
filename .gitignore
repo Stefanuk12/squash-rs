@@ -3,3 +3,6 @@ Cargo.lock
 init.luau
 squash/src/main.rs
 .direnv
+
+# cached upstream Squash source fetched by the e2e conformance suite
+squash/tests/lune/.cache/

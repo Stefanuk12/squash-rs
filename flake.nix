@@ -38,12 +38,13 @@
             rustToolchain
             pkgs.cargo-edit
             pkgs.cargo-watch
+            pkgs.lune 
           ];
 
           RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library";
 
           shellHook = ''
-            echo "squash dev shell — $(rustc --version)"
+            echo "squash dev shell — $(rustc --version), lune $(lune --version | cut -d' ' -f2)"
           '';
         };
 
