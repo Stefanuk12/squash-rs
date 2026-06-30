@@ -45,10 +45,7 @@ impl CframeRotSegments {
     }
 
     pub const fn from_special_id(id: NonZeroU8) -> Option<Self> {
-        let Some(twenty_five) = NonZeroU8::new(25) else {
-            return None;
-        };
-        if id.get() > twenty_five.get() {
+        if id.get() as usize >= CFRAME_ROTS.len() {
             None
         } else {
             Some(CFRAME_ROTS[id.get() as usize])
@@ -61,7 +58,39 @@ pub struct Cframe<T: SquashNumber> {
     pub rotation: CframeRotSegments,
     pub position: Vector3<T>,
 }
-impl_squash_object_a!(Cframe<T: SquashNumber>, rotation, position;position, rotation);
+impl<T: SquashNumber> SquashObject for Cframe<T> {
+    fn push_obj<C: SquashCursor>(self, cursor: &mut C) -> crate::Result<usize> {
+        let mut count = 0;
+        match self.special_id() {
+            Some(id) => {
+                count += cursor.push(id)?;
+            }
+            None => {
+                count += cursor.push(self.rotation.z as u16)?;
+                count += cursor.push(self.rotation.y as u16)?;
+                count += cursor.push(self.rotation.x as u16)?;
+                count += cursor.push(0u8)?;
+            }
+        }
+        count += cursor.push(self.position)?;
+        Ok(count)
+    }
+    fn pop_obj<C: SquashCursor>(cursor: &mut C) -> crate::Result<Self> {
+        let position = Vector3::<T>::pop_obj(cursor)?;
+        let marker = cursor.pop::<u8>()?;
+        let rotation = if let Some(id) = NonZeroU8::new(marker) {
+            CframeRotSegments::from_special_id(id).ok_or_else(|| {
+                crate::Error::Custom(format!("invalid CFrame special id {marker}"))
+            })?
+        } else {
+            let x = cursor.pop::<u16>()? as i16;
+            let y = cursor.pop::<u16>()? as i16;
+            let z = cursor.pop::<u16>()? as i16;
+            CframeRotSegments { x, y, z }
+        };
+        Ok(Cframe { rotation, position })
+    }
+}
 
 impl<T: SquashNumber> Cframe<T> {
     pub const fn special_id(&self) -> Option<u8> {
@@ -112,8 +141,9 @@ where
 #[cfg(feature = "serde")]
 impl<'de, T: SquashNumber> Deserialize<'de> for Cframe<T> {
     fn deserialize<D>(deserializer: D) -> CoreResult<Self, D::Error>
-        where
-            D: Deserializer<'de> {
+    where
+        D: Deserializer<'de>,
+    {
         struct CframeVisitor<T>(core::marker::PhantomData<T>);
 
         impl<'de, T: SquashNumber> serde::de::Visitor<'de> for CframeVisitor<T> {
@@ -124,20 +154,31 @@ impl<'de, T: SquashNumber> Deserialize<'de> for Cframe<T> {
             }
 
             fn visit_seq<A>(self, mut seq: A) -> CoreResult<Self::Value, A::Error>
-                where
-                    A: serde::de::SeqAccess<'de>, {
-                let position = seq.next_element::<Vector3<T>>()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-                let special_id = seq.next_element::<u8>()?.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let position = seq
+                    .next_element::<Vector3<T>>()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let special_id = seq
+                    .next_element::<u8>()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
                 let rotation = if special_id == 0 {
-                    seq.next_element::<CframeRotSegments>()?.ok_or_else(|| serde::de::Error::invalid_length(2, &self))?
+                    seq.next_element::<CframeRotSegments>()?
+                        .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?
                 } else {
-                    CframeRotSegments::from_special_id(NonZeroU8::new(special_id).unwrap()).ok_or_else(|| serde::de::Error::custom("invalid special_id"))?
+                    CframeRotSegments::from_special_id(NonZeroU8::new(special_id).unwrap())
+                        .ok_or_else(|| serde::de::Error::custom("invalid special_id"))?
                 };
 
                 Ok(Cframe { rotation, position })
             }
         }
 
-        deserializer.deserialize_struct("Cframe", &["rotation", "special_id", "position"], CframeVisitor(core::marker::PhantomData))
+        deserializer.deserialize_struct(
+            "Cframe",
+            &["rotation", "special_id", "position"],
+            CframeVisitor(core::marker::PhantomData),
+        )
     }
 }

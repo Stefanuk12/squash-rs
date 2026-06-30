@@ -1,11 +1,19 @@
 pub use super::*;
-pub use crate::{impl_squash_object_a, impl_squash, Zero, Result, SquashCursor, SquashObject, SquashInteger, SquashUint, SquashFloat, SquashNumber, Vlq, CoreResult};
+pub use crate::{
+    impl_squash, impl_squash_object_a, CoreResult, Result, SquashCursor, SquashFloat,
+    SquashInteger, SquashNumber, SquashObject, SquashUint, Vlq, Zero,
+};
 
-pub use derive_more::{From, Into, FromStr, TryFrom, TryInto, IntoIterator, AsRef, AsMut, Index, Deref, Not, Add, Mul, Sum, IndexMut, DerefMut, AddAssign, MulAssign};
+pub use derive_more::{
+    Add, AddAssign, AsMut, AsRef, Deref, DerefMut, From, FromStr, Index, IndexMut, Into,
+    IntoIterator, Mul, MulAssign, Not, Sum, TryFrom, TryInto,
+};
 
 #[cfg(feature = "serde")]
 pub use crate::impl_reverse_deserialize;
 #[cfg(feature = "serde")]
-pub use squash_derive::ReverseDeserialize;
+pub use serde::{
+    de::DeserializeOwned, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer,
+};
 #[cfg(feature = "serde")]
-pub use serde::{ser::SerializeStruct, de::DeserializeOwned, Deserialize, Serialize, Serializer, Deserializer};
+pub use squash_derive::ReverseDeserialize;

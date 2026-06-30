@@ -6,7 +6,7 @@ pub struct Vector2<T: SquashNumber> {
     pub y: T,
     pub x: T,
 }
-impl_squash_object_a!(Vector2<T: SquashNumber>, x, y;y, x);
+impl_squash_object_a!(Vector2<T: SquashNumber>, y, x; x, y);
 impl<T: SquashNumber> Vector2<T> {
     pub fn new(x: T, y: T) -> Self {
         Self { x, y }
@@ -19,4 +19,4 @@ pub struct Vector2int16 {
     pub y: i16,
     pub x: i16,
 }
-impl_squash_object_a!(Vector2int16, x, y;y, x);
+impl_squash_object_a!(Vector2int16, y, x; x, y);

@@ -21,10 +21,10 @@ macro_rules! impl_custom_int {
                 $int_type::from_le_bytes(bytes)
             }
         }
-        
+
         impl TryFrom<$int_type> for $name {
             type Error = $crate::Error;
-        
+
             fn try_from(val: $int_type) -> $crate::Result<$name> {
                 let bytes = val.to_le_bytes();
                 if bytes[$byte_count..].iter().any(|&x| x != 0) {
@@ -49,14 +49,14 @@ macro_rules! impl_custom_int {
                 Self: Sized,
             {
                 let mut arr = [0u8; $byte_count];
-                for i in (0..$byte_count) {
+                for i in (0..$byte_count).rev() {
                     arr[i] = cursor.pop()?;
                 }
                 Ok($name(arr))
             }
 
             fn push_obj<T: $crate::SquashCursor>(self, cursor: &mut T) -> $crate::Result<usize> {
-                for i in (0..$byte_count).rev() {
+                for i in 0..$byte_count {
                     cursor.push(self.0[i])?;
                 }
                 Ok($byte_count)
@@ -66,8 +66,9 @@ macro_rules! impl_custom_int {
         #[cfg(feature = "serde")]
         impl<'de> ::serde::Deserialize<'de> for $name {
             fn deserialize<D>(deserializer: D) -> ::core::result::Result<Self, D::Error>
-                where
-                    D: ::serde::Deserializer<'de> {
+            where
+                D: ::serde::Deserializer<'de>,
+            {
                 #[doc(hidden)]
                 struct Visitor<'de> {
                     marker: ::core::marker::PhantomData<$name>,
@@ -89,8 +90,8 @@ macro_rules! impl_custom_int {
                     where
                         E: ::serde::Deserializer<'de>,
                     {
-                        let mut x: [u8; $byte_count] = <[u8; $byte_count] as ::serde::Deserialize>::deserialize(e)?;
-                        x.reverse();
+                        let x: [u8; $byte_count] =
+                            <[u8; $byte_count] as ::serde::Deserialize>::deserialize(e)?;
                         Ok($name(x))
                     }
                     #[inline]
@@ -101,7 +102,18 @@ macro_rules! impl_custom_int {
                     where
                         S: ::serde::de::SeqAccess<'de>,
                     {
-                        ::serde::de::SeqAccess::next_element::<[u8; $byte_count]>(&mut seq)?.ok_or(::serde::de::Error::invalid_length(0usize, &stringify!("tuple struct ", $name, " with ", $byte_count, " element"))).map($name)
+                        ::serde::de::SeqAccess::next_element::<[u8; $byte_count]>(&mut seq)?
+                            .ok_or(::serde::de::Error::invalid_length(
+                                0usize,
+                                &stringify!(
+                                    "tuple struct ",
+                                    $name,
+                                    " with ",
+                                    $byte_count,
+                                    " element"
+                                ),
+                            ))
+                            .map($name)
                     }
                 }
                 ::serde::Deserializer::deserialize_newtype_struct(

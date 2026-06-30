@@ -27,7 +27,7 @@ derive_more.workspace = true
 ux.workspace = true
 
 [features]
-default = ["roblox"]
+default = ["serde", "roblox"]
 roblox = []
 serde = ["dep:serde"]
 

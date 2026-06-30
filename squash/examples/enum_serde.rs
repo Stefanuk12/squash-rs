@@ -1,5 +1,7 @@
 use serde::Serialize;
-use squash::{deserialize, impl_serde_for_enum, serialize, u24, Color3, Result, ReverseDeserialize};
+use squash::{
+    impl_serde_for_enum, serde_deserialize, serde_serialize, u24, Color3, Result, ReverseDeserialize,
+};
 
 #[derive(Debug, Serialize, ReverseDeserialize)]
 struct Bar {
@@ -31,9 +33,9 @@ fn main() -> Result<()> {
         d: 5,
     });
 
-    let mut bytes = serialize(&x)?;
+    let mut bytes = serde_serialize(&x)?;
     println!("{:?}", bytes);
-    let des = deserialize::<Foo>(&mut bytes)?;
+    let des = serde_deserialize::<Foo>(&mut bytes)?;
     println!("{:?}", des);
 
     Ok(())

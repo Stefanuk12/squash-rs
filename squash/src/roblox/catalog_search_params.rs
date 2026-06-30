@@ -1,6 +1,6 @@
 use super::prelude::*;
 
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, ReverseDeserialize))]
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
 pub struct CatalogSearchParams {
     pub include_off_sale: bool,
@@ -15,4 +15,4 @@ pub struct CatalogSearchParams {
     pub sales_type_filter: EnumItem,
     pub asset_types: Vec<EnumItem>,
 }
-impl_squash!(CatalogSearchParams, include_off_sale, limit, min_price, max_price, creator_name, search_keyworld, sort_type, sort_aggregration, category_filter, sales_type_filter, asset_types;asset_types, sales_type_filter, category_filter, sort_aggregration, sort_type, search_keyworld, creator_name, max_price, min_price, limit, include_off_sale);
+impl_squash_object_a!(CatalogSearchParams, include_off_sale, limit, min_price, max_price, creator_name, search_keyworld, sort_type, sort_aggregration, category_filter, sales_type_filter, asset_types;asset_types, sales_type_filter, category_filter, sort_aggregration, sort_type, search_keyworld, creator_name, max_price, min_price, limit, include_off_sale);

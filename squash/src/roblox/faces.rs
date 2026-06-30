@@ -23,19 +23,20 @@ impl From<u8> for Faces {
 }
 impl From<Faces> for u8 {
     fn from(x: Faces) -> Self {
-        (x.back as u8) |
-        (x.bottom as u8) << 1 |
-        (x.front as u8) << 2 |
-        (x.left as u8) << 3 |
-        (x.right as u8) << 4 |
-        (x.top as u8) << 5
+        (x.back as u8)
+            | (x.bottom as u8) << 1
+            | (x.front as u8) << 2
+            | (x.left as u8) << 3
+            | (x.right as u8) << 4
+            | (x.top as u8) << 5
     }
 }
 impl SquashObject for Faces {
     fn pop_obj<T>(cursor: &mut T) -> crate::Result<Self>
-            where
-                T: SquashCursor,
-                Self: Sized {
+    where
+        T: SquashCursor,
+        Self: Sized,
+    {
         u8::pop_obj(cursor).map(Self::from)
     }
     fn push_obj<T: SquashCursor>(self, cursor: &mut T) -> crate::Result<usize> {
@@ -46,16 +47,18 @@ impl SquashObject for Faces {
 #[cfg(feature = "serde")]
 impl Serialize for Faces {
     fn serialize<S>(&self, serializer: S) -> CoreResult<S::Ok, S::Error>
-        where
-            S: Serializer {
+    where
+        S: Serializer,
+    {
         serializer.serialize_u8(u8::from(*self))
     }
 }
 #[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for Faces {
     fn deserialize<D>(deserializer: D) -> CoreResult<Self, D::Error>
-        where
-            D: Deserializer<'de> {
+    where
+        D: Deserializer<'de>,
+    {
         let x = u8::deserialize(deserializer)?;
         Ok(Self::from(x))
     }

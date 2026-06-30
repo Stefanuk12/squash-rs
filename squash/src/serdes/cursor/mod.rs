@@ -1,5 +1,5 @@
-use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
 use core::fmt::Debug;
+use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
 
 import!(bytes, object);
 
@@ -10,6 +10,11 @@ pub trait SquashCursor: Read + Write + Seek {
     fn seek_end(&mut self) -> io::Result<u64> {
         self.seek(SeekFrom::End(0))
     }
+    
+    fn remaining(&mut self) -> io::Result<u64> {
+        self.seek(SeekFrom::Current(0))
+    }
+    
     fn pop_read(&mut self, buf: &mut [u8]) -> Result<usize, io::Error> {
         let ret = -(buf.len() as i64);
         self.seek(SeekFrom::Current(ret))?;
@@ -29,16 +34,16 @@ pub trait SquashCursor: Read + Write + Seek {
     fn pop<T>(&mut self) -> crate::Result<T>
     where
         T: SquashObject,
-        Self: Sized
+        Self: Sized,
     {
         T::pop_obj(self)
     }
 }
 
 impl<A> SquashCursor for Cursor<A>
-where 
+where
     A: AsMut<Vec<u8>> + AsRef<Vec<u8>> + Debug,
-    Cursor<A>: Read + Write + Seek
+    Cursor<A>: Read + Write + Seek,
 {
     fn realloc(&mut self, size: u64) {
         let position = self.position();
@@ -46,7 +51,7 @@ where
         let len = buf.len() as u64;
         if len < position + size {
             buf.resize((position + size) as usize, 0);
-        } 
+        }
     }
 
     fn print_cursor(&self) {

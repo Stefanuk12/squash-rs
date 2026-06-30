@@ -9,6 +9,9 @@ macro_rules! import {
 
 import!(ds, num, error, serdes);
 
+pub mod codec;
+pub use codec::SerDes;
+
 pub use squash_derive::*;
 
 #[cfg(feature = "roblox")]
@@ -301,7 +304,7 @@ macro_rules! impl_squash_object_a {
             fn push_obj<Obj: $crate::SquashCursor>(self, cursor: &mut Obj) -> $crate::Result<usize> {
                 let mut count = 0;
                 $(
-                    count += cursor.push(self.$field.clone())?;
+                    count += cursor.push(self.$field)?;
                 )*
                 Ok(count)
             }
@@ -323,7 +326,7 @@ macro_rules! impl_squash_object_a {
             fn push_obj<Obj: $crate::SquashCursor>(self, cursor: &mut Obj) -> $crate::Result<usize> {
                 let mut count = 0;
                 $(
-                    count += cursor.push(self.$field.clone())?;
+                    count += cursor.push(self.$field)?;
                 )*
                 Ok(count)
             }
@@ -395,7 +398,7 @@ macro_rules! impl_serde_for_enum {
                         $enum_name::$variant(v) => {
                             let mut seq = serializer.serialize_struct(stringify!($enum_name), 2)?;
                             seq.serialize_field("0", v)?;
-                            seq.serialize_field("1", &$index)?;
+                            seq.serialize_field("1", &($index as u8))?;
                             seq.end()
                         }
                     )*

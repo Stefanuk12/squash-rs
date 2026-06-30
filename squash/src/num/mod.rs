@@ -31,4 +31,6 @@ macro_rules! impl_squash_number {
     };
 }
 
-impl_squash_number!(f32, f64, i8, i16, i24, i32, i40, i48, i56, i64, u8, u16, u24, u32, u40, u48, u56, u64);
+impl_squash_number!(
+    f32, f64, i8, i16, i24, i32, i40, i48, i56, i64, u8, u16, u24, u32, u40, u48, u56, u64
+);

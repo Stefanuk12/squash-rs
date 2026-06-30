@@ -1,10 +1,12 @@
+use crate::BoolTuple3;
+
 use super::prelude::*;
 
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, ReverseDeserialize))]
 #[derive(Clone, PartialEq, PartialOrd, Debug, Default)]
 pub struct RaycastParams {
-   pub respect_can_collide: bool,
-   pub filter_type: EnumItem,
-   pub collision_group: String, 
+    pub bool_data: BoolTuple3,
+    pub filter_type: EnumItem,
+    pub collision_group: String,
 }
-impl_squash!(RaycastParams, respect_can_collide, filter_type, collision_group;collision_group, filter_type, respect_can_collide);
+impl_squash_object_a!(RaycastParams, bool_data, collision_group, filter_type; filter_type, collision_group, bool_data);
