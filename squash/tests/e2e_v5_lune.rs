@@ -27,7 +27,9 @@
 use std::collections::{BTreeSet, HashMap};
 use std::process::Command;
 
-use squash::codec::{array, array_n, map, opt, range, string, string_n, to_bytes, Bool, U16, U8};
+use squash::codec::{
+    array, array_n, literal, map, opt, range, string, string_n, to_bytes, Bool, U16, U8,
+};
 use squash::{
     i24, i40, i48, i56, serialize, u24, u40, u48, u56, BrickColor, Cframe, CframeRotSegments,
     Color3, ColorSequenceKeypoint, NumberRange, PhysicalProperties, Ray, Rect, Region3int16,
@@ -148,6 +150,10 @@ fn rust_catalog() -> Vec<(&'static str, Bytes)> {
     // range
     add!("range/500", cdc(range(10, 1000), 500i64));
     add!("range/neg", cdc(range(-100, 100), -7i64));
+
+    // literal (upstream's enum-tag codec: 0-based index in one byte)
+    add!("literal/first", cdc(literal(vec!["red", "green", "blue"]), "red"));
+    add!("literal/last", cdc(literal(vec!["red", "green", "blue"]), "blue"));
 
     // record (regular fields, sorted-order)
     add!("record/ab", obj(Rec { a: 0x0203, b: 0x11223344 }));

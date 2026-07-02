@@ -77,6 +77,10 @@ return function(S: any, rbx: any)
 	add("range/500", function(c) S.range(10, 1000).ser(c, 500) end)
 	add("range/neg", function(c) S.range(-100, 100).ser(c, -7) end)
 
+	---------------------------------------------------------------------- literal
+	add("literal/first", function(c) S.literal("red", "green", "blue").ser(c, "red") end)
+	add("literal/last", function(c) S.literal("red", "green", "blue").ser(c, "blue") end)
+
 	----------------------------------------------------------- record (regular fields)
 	add("record/ab", function(c)
 		S.record({ a = S.u16(), b = S.u32() }).ser(c, { a = 0x0203, b = 0x11223344 })
