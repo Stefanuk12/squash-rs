@@ -91,7 +91,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         Ok(())
     }
     fn serialize_none(self) -> Result<Self::Ok> {
-        self.serialize_unit()
+        self.output.push(0_u8)?;
+        Ok(())
     }
     fn serialize_some<T>(self, value: &T) -> Result<Self::Ok>
     where
@@ -102,7 +103,6 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         Ok(())
     }
     fn serialize_unit(self) -> Result<Self::Ok> {
-        self.output.push(0_u8)?;
         Ok(())
     }
     fn serialize_unit_struct(self, _name: &'static str) -> Result<Self::Ok> {

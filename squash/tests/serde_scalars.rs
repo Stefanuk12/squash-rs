@@ -92,6 +92,41 @@ fn option_round_trips() {
     serde_rt(Some(Option::<u8>::None));
 }
 
+/// `()` must encode to zero bytes: `deserialize_unit` reads nothing, so any
+/// byte written for a unit would desync everything deserialized after it.
+#[test]
+fn unit_is_zero_bytes_and_round_trips() {
+    assert_eq!(serde_serialize(&()).unwrap(), Vec::<u8>::new());
+    assert_eq!(serde_serialize(&Some(())).unwrap(), vec![0x01]);
+    assert_eq!(serde_serialize(&Option::<()>::None).unwrap(), vec![0x00]);
+
+    serde_rt(());
+    serde_rt(Some(()));
+    serde_rt(Option::<()>::None);
+    // A unit mid-tuple desyncs the trailing element if it writes any bytes.
+    serde_rt((1u8, (), 2u8));
+}
+
+/// Because units are zero bytes, a `Vec<()>`/map serializes to just its VLQ
+/// count. A hostile or corrupt count over such zero-width elements is
+/// unsatisfiable and must be rejected up front, not looped `count` times making
+/// no progress — mirroring the native `read_elems` DoS guard. A trusted length
+/// (tuple/struct) with unit fields is unaffected (see `(1u8, (), 2u8)` above).
+#[test]
+fn forged_zero_width_count_is_rejected_not_spun() {
+    // `vec![(); 5]` encodes to just the count byte, but cannot be decoded back:
+    // five zero-width elements are indistinguishable from a forged huge count.
+    let mut seq = serde_serialize(&vec![(); 5]).unwrap();
+    assert_eq!(seq, vec![0x05]);
+    let seq_back: Result<Vec<()>, _> = serde_deserialize(&mut seq);
+    assert!(seq_back.is_err());
+
+    // Same guard on the map path: a bare count over zero-width entries errors.
+    let mut map = vec![0x05];
+    let map_back: Result<std::collections::BTreeMap<(), ()>, _> = serde_deserialize(&mut map);
+    assert!(map_back.is_err());
+}
+
 #[test]
 fn collections_round_trip() {
     serde_rt(Vec::<u32>::new());

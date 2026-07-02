@@ -146,13 +146,13 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let len = self.input.pop::<Vlq>()?;
-        visitor.visit_seq(VlqIncluded::new(self, *len))
+        visitor.visit_seq(VlqIncluded::new(self, *len, true))
     }
     fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_seq(VlqIncluded::new(self, len as u64))
+        visitor.visit_seq(VlqIncluded::new(self, len as u64, false))
     }
     fn deserialize_tuple_struct<V>(
         self,
@@ -170,7 +170,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let len = self.input.pop::<Vlq>()?;
-        visitor.visit_map(VlqIncluded::new(self, *len))
+        visitor.visit_map(VlqIncluded::new(self, *len, true))
     }
     fn deserialize_struct<V>(
         self,
@@ -181,7 +181,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_seq(VlqIncluded::new(self, fields.len() as u64))
+        visitor.visit_seq(VlqIncluded::new(self, fields.len() as u64, false))
     }
     fn deserialize_enum<V>(
         self,
@@ -211,10 +211,21 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 struct VlqIncluded<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
     size_hint: u64,
+    /// Whether `size_hint` is an untrusted wire count (seq/map) rather than a
+    /// schema-supplied length (tuple/struct). When set, a claimed element that
+    /// consumes no bytes is rejected instead of looped over — this mirrors the
+    /// native `read_elems` zero-width DoS guard (see `codec/array.rs`), without
+    /// which a forged count over zero-byte elements (`Vec<()>`, unit structs,
+    /// `PhantomData`) spins for up to `2^56 - 1` iterations.
+    guarded: bool,
 }
 impl<'a, 'de> VlqIncluded<'a, 'de> {
-    fn new(de: &'a mut Deserializer<'de>, size_hint: u64) -> Self {
-        Self { de, size_hint }
+    fn new(de: &'a mut Deserializer<'de>, size_hint: u64, guarded: bool) -> Self {
+        Self {
+            de,
+            size_hint,
+            guarded,
+        }
     }
 }
 
@@ -233,7 +244,15 @@ impl<'de, 'a> SeqAccess<'de> for VlqIncluded<'a, 'de> {
         }
 
         self.size_hint -= 1;
-        seed.deserialize(&mut *self.de).map(Some)
+        let before = self.de.input.remaining()?;
+        let value = seed.deserialize(&mut *self.de)?;
+        if self.guarded && self.size_hint > 0 && self.de.input.remaining()? == before {
+            return Err(Error::Custom(format!(
+                "sequence claims {} more elements but this one consumed no bytes",
+                self.size_hint
+            )));
+        }
+        Ok(Some(value))
     }
 }
 
@@ -253,8 +272,15 @@ impl<'de, 'a> MapAccess<'de> for VlqIncluded<'a, 'de> {
         }
 
         self.size_hint -= 1;
+        let before = self.de.input.remaining()?;
         let key = kseed.deserialize(&mut *self.de)?;
         let value = vseed.deserialize(&mut *self.de)?;
+        if self.guarded && self.size_hint > 0 && self.de.input.remaining()? == before {
+            return Err(Error::Custom(format!(
+                "map claims {} more entries but this one consumed no bytes",
+                self.size_hint
+            )));
+        }
         Ok(Some((key, value)))
     }
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
@@ -265,6 +291,7 @@ impl<'de, 'a> MapAccess<'de> for VlqIncluded<'a, 'de> {
             return Ok(None);
         }
 
+        self.size_hint -= 1;
         seed.deserialize(&mut *self.de).map(Some)
     }
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
@@ -315,13 +342,13 @@ impl<'de, 'a> VariantAccess<'de> for Enum<'a, 'de> {
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_seq(VlqIncluded::new(self.de, len as u64))
+        visitor.visit_seq(VlqIncluded::new(self.de, len as u64, false))
     }
 
     fn struct_variant<V>(self, fields: &'static [&'static str], visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_seq(VlqIncluded::new(self.de, fields.len() as u64))
+        visitor.visit_seq(VlqIncluded::new(self.de, fields.len() as u64, false))
     }
 }
