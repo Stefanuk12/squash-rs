@@ -28,15 +28,30 @@ where
     Ok(value)
 }
 
+const MAX_DEPTH: usize = 128;
+
 #[derive(Debug)]
 pub struct Deserializer<'de> {
     input: Cursor<&'de mut Vec<u8>>,
+    depth: usize,
 }
 impl<'de> Deserializer<'de> {
     pub fn new(input: &'de mut Vec<u8>) -> Result<Self> {
         let mut input = Cursor::new(input);
         input.seek_end()?;
-        Ok(Self { input })
+        Ok(Self { input, depth: 0 })
+    }
+
+    fn enter(&mut self) -> Result<()> {
+        if self.depth == MAX_DEPTH {
+            return Err(Error::RecursionDepthExceeded);
+        }
+        self.depth += 1;
+        Ok(())
+    }
+
+    fn exit(&mut self) {
+        self.depth -= 1;
     }
 }
 impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
@@ -118,7 +133,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         let is_some = self.input.pop::<u8>()? == 1;
         if is_some {
-            visitor.visit_some(self)
+            self.enter()?;
+            let value = visitor.visit_some(&mut *self);
+            self.exit();
+            value
         } else {
             visitor.visit_none()
         }
@@ -139,20 +157,29 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_newtype_struct(self)
+        self.enter()?;
+        let value = visitor.visit_newtype_struct(&mut *self);
+        self.exit();
+        value
     }
     fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
         let len = self.input.pop::<Vlq>()?;
-        visitor.visit_seq(VlqIncluded::new(self, *len, true))
+        self.enter()?;
+        let value = visitor.visit_seq(VlqIncluded::new(&mut *self, *len, true));
+        self.exit();
+        value
     }
     fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_seq(VlqIncluded::new(self, len as u64, false))
+        self.enter()?;
+        let value = visitor.visit_seq(VlqIncluded::new(&mut *self, len as u64, false));
+        self.exit();
+        value
     }
     fn deserialize_tuple_struct<V>(
         self,
@@ -170,7 +197,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         let len = self.input.pop::<Vlq>()?;
-        visitor.visit_map(VlqIncluded::new(self, *len, true))
+        self.enter()?;
+        let value = visitor.visit_map(VlqIncluded::new(&mut *self, *len, true));
+        self.exit();
+        value
     }
     fn deserialize_struct<V>(
         self,
@@ -181,7 +211,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_seq(VlqIncluded::new(self, fields.len() as u64, false))
+        self.enter()?;
+        let value = visitor.visit_seq(VlqIncluded::new(&mut *self, fields.len() as u64, false));
+        self.exit();
+        value
     }
     fn deserialize_enum<V>(
         self,
@@ -192,13 +225,18 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_enum(Enum::new(self))
+        self.enter()?;
+        let value = visitor.visit_enum(Enum::new(&mut *self));
+        self.exit();
+        value
     }
+    // Identifiers exist on the wire only as single-byte enum variant tags;
+    // names are never encoded.
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        self.deserialize_str(visitor)
+        visitor.visit_u64(self.input.pop::<u8>()? as u64)
     }
     fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value>
     where

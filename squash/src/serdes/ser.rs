@@ -15,6 +15,10 @@ macro_rules! impl_serialize {
     };
 }
 
+fn variant_tag(index: u32) -> Result<u8> {
+    u8::try_from(index).map_err(|_| Error::VariantIndexTooLarge(index))
+}
+
 pub fn serde_serialize<T>(value: &T) -> Result<Vec<u8>>
 where
     T: Serialize,
@@ -53,7 +57,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     type SerializeTupleVariant = SeqSerializer<'a>;
     type SerializeMap = MapSerializer<'a>;
     type SerializeStruct = Self;
-    type SerializeStructVariant = Self;
+    type SerializeStructVariant = SeqSerializer<'a>;
 
     impl_serialize!(
         serialize_bool,
@@ -111,10 +115,11 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     fn serialize_unit_variant(
         self,
         _name: &'static str,
-        _variant_index: u32,
-        variant: &'static str,
+        variant_index: u32,
+        _variant: &'static str,
     ) -> Result<Self::Ok> {
-        self.serialize_str(variant)
+        self.output.push(variant_tag(variant_index)?)?;
+        Ok(())
     }
     fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
     where
@@ -125,28 +130,23 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     fn serialize_newtype_variant<T>(
         self,
         _name: &'static str,
-        _variant_index: u32,
+        variant_index: u32,
         _variant: &'static str,
         value: &T,
     ) -> Result<Self::Ok>
     where
         T: ?Sized + Serialize,
     {
-        value.serialize(self)
+        let tag = variant_tag(variant_index)?;
+        value.serialize(&mut *self)?;
+        self.output.push(tag)?;
+        Ok(())
     }
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
-        Ok(SeqSerializer {
-            ser: self,
-            chunks: Vec::new(),
-            emit_count: true,
-        })
+        Ok(SeqSerializer::new(self, true, None))
     }
     fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
-        Ok(SeqSerializer {
-            ser: self,
-            chunks: Vec::new(),
-            emit_count: false,
-        })
+        Ok(SeqSerializer::new(self, false, None))
     }
     fn serialize_tuple_struct(
         self,
@@ -158,15 +158,15 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     fn serialize_tuple_variant(
         self,
         _name: &'static str,
-        _variant_index: u32,
+        variant_index: u32,
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        Ok(SeqSerializer {
-            ser: self,
-            chunks: Vec::new(),
-            emit_count: false,
-        })
+        Ok(SeqSerializer::new(
+            self,
+            false,
+            Some(variant_tag(variant_index)?),
+        ))
     }
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         Ok(MapSerializer {
@@ -178,14 +178,17 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         Ok(self)
     }
+    // Unlike plain structs (written in place, paired with `ReverseDeserialize`'s
+    // reversed field order), variant fields are buffered like tuples so they pop
+    // in declaration order — serde's derived enum visitor reads them forward.
     fn serialize_struct_variant(
         self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _len: usize,
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
+        len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        Ok(self)
+        self.serialize_tuple_variant(name, variant_index, variant, len)
     }
 }
 
@@ -193,8 +196,19 @@ pub struct SeqSerializer<'a> {
     ser: &'a mut Serializer,
     chunks: Vec<Vec<u8>>,
     emit_count: bool,
+    /// Enum variant tag, written after everything else so the LIFO cursor
+    /// yields it first on deserialize.
+    trailing_tag: Option<u8>,
 }
 impl<'a> SeqSerializer<'a> {
+    fn new(ser: &'a mut Serializer, emit_count: bool, trailing_tag: Option<u8>) -> Self {
+        Self {
+            ser,
+            chunks: Vec::new(),
+            emit_count,
+            trailing_tag,
+        }
+    }
     fn buffer<T>(&mut self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
@@ -210,6 +224,9 @@ impl<'a> SeqSerializer<'a> {
         }
         if self.emit_count {
             self.ser.output.push(Vlq(self.chunks.len() as u64))?;
+        }
+        if let Some(tag) = self.trailing_tag {
+            self.ser.output.push(tag)?;
         }
         Ok(())
     }
@@ -329,7 +346,7 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
         Ok(())
     }
 }
-impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
+impl<'a> ser::SerializeStructVariant for SeqSerializer<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -337,9 +354,9 @@ impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-        value.serialize(&mut **self)
+        self.buffer(value)
     }
     fn end(self) -> Result<Self::Ok> {
-        Ok(())
+        self.flush()
     }
 }

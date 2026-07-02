@@ -104,7 +104,7 @@ fn rust_catalog() -> Vec<(&'static str, Bytes)> {
     add!("num/f32", obj(1.5f32));
     add!("num/f32_neg", obj(-2.5f32));
     add!("num/f64", obj(1.5f64));
-    add!("num/f64_pi", obj(3.141592653589793f64));
+    add!("num/f64_pi", obj(std::f64::consts::PI));
 
     // vlq
     for v in [0u64, 1, 127, 128, 300, 16383, 16384, 70000] {

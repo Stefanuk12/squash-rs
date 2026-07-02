@@ -17,6 +17,10 @@ pub enum Error {
     InvalidVlq(u64),
     #[error("deserialize_any is not implemented")]
     DeserializeAnyNotImplemented,
+    #[error("enum variant index {0} does not fit the single-byte tag")]
+    VariantIndexTooLarge(u32),
+    #[error("deserialization recursion depth limit exceeded")]
+    RecursionDepthExceeded,
     #[error("failed to match variant")]
     DeserializeVariantNotMatched,
     #[error("{0}")]
