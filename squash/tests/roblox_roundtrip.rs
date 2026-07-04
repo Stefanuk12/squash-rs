@@ -3,7 +3,8 @@
 
 use squash::{
     deserialize, serialize, BoolTuple3, CatalogSearchParams, Cframe, CframeRotSegments, Color3,
-    ColorSequenceKeypoint, EnumItem, FloatCurveKey, Font, NumberRange, NumberSequenceKeypoint,
+    ColorSequence, ColorSequenceKeypoint, EnumItem, FloatCurveKey, Font, NumberRange, NumberSequence,
+    NumberSequenceKeypoint,
     OverlapParams, OverlapParamsBool, PathWaypoint, PhysicalProperties, Ray, RaycastParams,
     RaycastResult, Rect, Region3int16, RotationCurveKey, TweenInfo, Udim, Udim2, Vector2, Vector3,
     Vector3int16, Vlq,
@@ -22,6 +23,50 @@ fn color3_byte_order_and_round_trip() {
     // v5 pushes b, g, r
     assert_eq!(serialize(Color3 { r: 10, g: 20, b: 30 }).unwrap(), vec![30, 20, 10]);
     rt(Color3 { r: 1, g: 2, b: 3 });
+}
+
+#[test]
+fn number_sequence_keypoint_time_is_f32() {
+    // Upstream v5 pushes `value`, `envelope`, then `time` as a full f32 (`pushf4`),
+    // not a quantised u8. Bytes are value|envelope|time, each little-endian f32.
+    let kp = NumberSequenceKeypoint::<f32> { value: 0.5, envelope: 0.25, time: 0.75 };
+    let expected: Vec<u8> =
+        [0.5f32.to_le_bytes(), 0.25f32.to_le_bytes(), 0.75f32.to_le_bytes()].concat();
+    assert_eq!(serialize(kp).unwrap(), expected);
+    rt(kp);
+}
+
+#[test]
+fn number_sequence_native_layout() {
+    // Upstream v5 pushes keypoints forward then a trailing VLQ count.
+    let kp1 = NumberSequenceKeypoint::<f32> { value: 0.5, envelope: 0.25, time: 0.75 };
+    let kp2 = NumberSequenceKeypoint::<f32> { value: 1.0, envelope: 0.0, time: 1.0 };
+    let seq = NumberSequence::<f32>(vec![kp1, kp2]);
+    let expected: Vec<u8> = [
+        0.5f32.to_le_bytes().as_slice(),
+        &0.25f32.to_le_bytes(),
+        &0.75f32.to_le_bytes(),
+        &1.0f32.to_le_bytes(),
+        &0.0f32.to_le_bytes(),
+        &1.0f32.to_le_bytes(),
+        &[2u8],
+    ]
+    .concat();
+    assert_eq!(serialize(seq.clone()).unwrap(), expected);
+    rt(seq);
+}
+
+#[test]
+fn color_sequence_native_layout() {
+    // Matches upstream v5: each keypoint is `[b, g, r, time]` (Color3 channels
+    // then `time * 255`, all u8), keypoints forward, trailing VLQ count.
+    let seq = ColorSequence(vec![
+        ColorSequenceKeypoint { value: Color3 { r: 10, g: 20, b: 30 }, time: 0 },
+        ColorSequenceKeypoint { value: Color3 { r: 40, g: 50, b: 60 }, time: 255 },
+    ]);
+    let expected: Vec<u8> = vec![30, 20, 10, 0, 60, 50, 40, 255, 2];
+    assert_eq!(serialize(seq.clone()).unwrap(), expected);
+    rt(seq);
 }
 
 #[test]
@@ -218,7 +263,7 @@ fn serde_round_trips_migrated_records() {
         density: 7.0,
     });
     serde_rt(FloatCurveKey { interpolation: EnumItem(Vlq(0)), value: 9.0, time: 3.0 });
-    serde_rt(NumberSequenceKeypoint::<f32> { value: 1.0, envelope: 0.1, time: 200 });
+    serde_rt(NumberSequenceKeypoint::<f32> { value: 1.0, envelope: 0.1, time: 0.75 });
     serde_rt(RotationCurveKey::<f32> { interpolation: EnumItem(Vlq(1)), value: 2.0, time: 4.0 });
     serde_rt(CatalogSearchParams {
         include_off_sale: true,

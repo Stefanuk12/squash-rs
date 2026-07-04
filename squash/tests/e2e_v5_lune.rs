@@ -32,8 +32,9 @@ use squash::codec::{
 };
 use squash::{
     i24, i40, i48, i56, serialize, u24, u40, u48, u56, BrickColor, Cframe, CframeRotSegments,
-    Color3, ColorSequenceKeypoint, NumberRange, PhysicalProperties, Ray, Rect, Region3int16,
-    SerDes, SquashObject, Udim, Udim2, Vector2, Vector2int16, Vector3, Vector3int16, Vlq,
+    Color3, ColorSequence, ColorSequenceKeypoint, NumberRange, NumberSequence, NumberSequenceKeypoint,
+    PhysicalProperties, Ray, Rect, Region3int16, SerDes, SquashObject, Udim, Udim2, Vector2, Vector2int16, Vector3,
+    Vector3int16, Vlq,
 };
 
 /// Cases where the Rust port is known to diverge from upstream v5. Listed here so
@@ -211,6 +212,24 @@ fn rust_catalog() -> Vec<(&'static str, Bytes)> {
     add!(
         "roblox/colorseqkp",
         obj(ColorSequenceKeypoint { value: Color3 { r: 10, g: 20, b: 30 }, time: 255 })
+    );
+    add!(
+        "roblox/numseqkp",
+        obj(NumberSequenceKeypoint::<f32> { value: 0.5, envelope: 0.25, time: 0.75 })
+    );
+    add!(
+        "roblox/numseq",
+        obj(NumberSequence::<f32>(vec![
+            NumberSequenceKeypoint { value: 0.5, envelope: 0.25, time: 0.0 },
+            NumberSequenceKeypoint { value: 1.0, envelope: 0.0, time: 1.0 },
+        ]))
+    );
+    add!(
+        "roblox/colorseq",
+        obj(ColorSequence(vec![
+            ColorSequenceKeypoint { value: Color3 { r: 10, g: 20, b: 30 }, time: 0 },
+            ColorSequenceKeypoint { value: Color3 { r: 40, g: 50, b: 60 }, time: 255 },
+        ]))
     );
 
     out

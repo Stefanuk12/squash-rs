@@ -5,6 +5,6 @@ use super::prelude::*;
 pub struct NumberSequenceKeypoint<T: SquashNumber> {
     pub value: T,
     pub envelope: T,
-    pub time: u8,
+    pub time: f32,
 }
 impl_squash_object_a!(NumberSequenceKeypoint<T: SquashNumber>, value, envelope, time;time, envelope, value);

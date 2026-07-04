@@ -8,8 +8,7 @@
 -- if the name sets differ.
 --
 -- Excluded on purpose (non-deterministic or float-derived bytes that can't be
--- byte-compared): multi-entry maps, general-rotation CFrames, NumberSequence*
--- (v5 stores keypoint time as f32, the Rust port uses u8).
+-- byte-compared): multi-entry maps, general-rotation CFrames.
 
 return function(S: any, rbx: any)
 	local cases: { { name: string, run: (any) -> () } } = {}
@@ -111,6 +110,29 @@ return function(S: any, rbx: any)
 	add("roblox/brickcolor", function(c) S.BrickColor().ser(c, rbx.BrickColor.new(194)) end)
 	add("roblox/colorseqkp", function(c)
 		S.ColorSequenceKeypoint().ser(c, rbx.ColorSequenceKeypoint.new(1, rbx.Color3.fromRGB(10, 20, 30)))
+	end)
+	-- `rbx.NumberSequenceKeypoint.new(time, value, envelope)`.
+	add("roblox/numseqkp", function(c)
+		S.NumberSequenceKeypoint(S.f32()).ser(c, rbx.NumberSequenceKeypoint.new(0.75, 0.5, 0.25))
+	end)
+	add("roblox/numseq", function(c)
+		S.NumberSequence(S.f32()).ser(
+			c,
+			rbx.NumberSequence.new({
+				rbx.NumberSequenceKeypoint.new(0, 0.5, 0.25),
+				rbx.NumberSequenceKeypoint.new(1, 1, 0),
+			})
+		)
+	end)
+	-- `rbx.ColorSequenceKeypoint.new(time, color)`; upstream stores time as `time * 255`.
+	add("roblox/colorseq", function(c)
+		S.ColorSequence().ser(
+			c,
+			rbx.ColorSequence.new({
+				rbx.ColorSequenceKeypoint.new(0, rbx.Color3.fromRGB(10, 20, 30)),
+				rbx.ColorSequenceKeypoint.new(1, rbx.Color3.fromRGB(40, 50, 60)),
+			})
+		)
 	end)
 
 	return cases
